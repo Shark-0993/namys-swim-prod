@@ -1,27 +1,32 @@
 import os
-import uvicorn
-from fastapi import FastAPI
-from telegram.ext import ApplicationBuilder, CommandHandler
+import asyncio
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 
-app = FastAPI()
+# Читаем данные из переменных окружения
 TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = os.getenv("ADMIN_ID")
 
-async def start(update, context):
-    await update.message.reply_text("Привет! Я бот NAMYS-SWIM!")
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    # Ответ пользователю
+    await update.message.reply_text("Привет! Бот запущен и работает!")
+    
+    # Уведомление админу
+    if ADMIN_ID:
+        try:
+            await context.bot.send_message(
+                chat_id=int(ADMIN_ID), 
+                text=f"🔔 Новый пользователь: {user.first_name} (ID: {user.id}) нажал /start"
+            )
+        except Exception as e:
+            print(f"Ошибка отправки админу: {e}")
 
-if TOKEN:
-    application = ApplicationBuilder().token(TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-
-    @app.on_event("startup")
-    async def startup_event():
-        await application.initialize()
-        await application.start()
-        await application.updater.start_polling()
-
-@app.get("/")
-async def root():
-    return {"status": "Bot is running"}
-
-if __name__ == "__main__":
-    uvicorn.run("main_new:app", host="0.0.0.0", port=10000)
+if __name__ == '__main__':
+    if not TOKEN:
+        print("Ошибка: BOT_TOKEN не найден!")
+    else:
+        application = ApplicationBuilder().token(TOKEN).build()
+        application.add_handler(CommandHandler("start", start))
+        print("Бот запущен...")
+        application.run_polling()
